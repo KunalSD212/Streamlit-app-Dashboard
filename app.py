@@ -78,85 +78,81 @@ def kpi(label, value):
 # MIS OVERVIEW
 # =========================
 if page == "MIS Overview":
-st.title("📊 MIS Overview")
 
-df = data["mis"].copy()
+    st.title("📊 MIS Overview")
 
-# Identify month columns
-month_cols = [col for col in df.columns if "-" in str(col)]
+    df = data["mis"].copy()
 
-# Dropdown: Monthly / YTD
-view_type = st.selectbox("Select View", ["Monthly", "YTD"])
+    # Identify month columns
+    month_cols = [col for col in df.columns if "-" in str(col)]
 
-# Select month (for Monthly view)
-selected_month = st.selectbox("Select Month", month_cols)
+    # Dropdown: Monthly / YTD
+    view_type = st.selectbox("Select View", ["Monthly", "YTD"])
 
-# -------------------------
-# Extract Key Rows
-# -------------------------
-def get_value(label):
-    row = df[df.iloc[:,0].astype(str).str.contains(label, case=False, na=False)]
-    if not row.empty:
-        return row.iloc[0][month_cols]
-    return pd.Series([0]*len(month_cols), index=month_cols)
+    # Select month
+    selected_month = st.selectbox("Select Month", month_cols)
 
-revenue_series = get_value("revenue")
-direct_cost_series = get_value("direct")
-indirect_cost_series = get_value("indirect")
+    # -------------------------
+    # Extract Key Rows
+    # -------------------------
+    def get_value(label):
+        row = df[df.iloc[:,0].astype(str).str.contains(label, case=False, na=False)]
+        if not row.empty:
+            return row.iloc[0][month_cols]
+        return pd.Series([0]*len(month_cols), index=month_cols)
 
-# -------------------------
-# Monthly vs YTD Logic
-# -------------------------
-if view_type == "Monthly":
-    revenue = revenue_series[selected_month]
-    direct_cost = direct_cost_series[selected_month]
-    indirect_cost = indirect_cost_series[selected_month]
+    revenue_series = get_value("revenue")
+    direct_cost_series = get_value("direct")
+    indirect_cost_series = get_value("indirect")
 
-else:  # YTD
-    revenue = revenue_series.sum()
-    direct_cost = direct_cost_series.sum()
-    indirect_cost = indirect_cost_series.sum()
+    # -------------------------
+    # Monthly vs YTD Logic
+    # -------------------------
+    if view_type == "Monthly":
+        revenue = revenue_series[selected_month]
+        direct_cost = direct_cost_series[selected_month]
+        indirect_cost = indirect_cost_series[selected_month]
+    else:
+        revenue = revenue_series.sum()
+        direct_cost = direct_cost_series.sum()
+        indirect_cost = indirect_cost_series.sum()
 
-# Calculations
-gross_margin = revenue - direct_cost
-ebitda = gross_margin - indirect_cost
+    # Calculations
+    gross_margin = revenue - direct_cost
+    ebitda = gross_margin - indirect_cost
 
-# -------------------------
-# KPI CARDS
-# -------------------------
-c1, c2, c3, c4, c5 = st.columns(5)
+    # -------------------------
+    # KPI CARDS
+    # -------------------------
+    c1, c2, c3, c4, c5 = st.columns(5)
 
-c1.metric("Revenue", f"₹ {revenue:,.0f}")
-c2.metric("Direct Cost", f"₹ {direct_cost:,.0f}")
-c3.metric("Indirect Cost", f"₹ {indirect_cost:,.0f}")
-c4.metric("Gross Margin", f"₹ {gross_margin:,.0f}")
-c5.metric("EBITDA", f"₹ {ebitda:,.0f}")
+    c1.metric("Revenue", f"₹ {revenue:,.0f}")
+    c2.metric("Direct Cost", f"₹ {direct_cost:,.0f}")
+    c3.metric("Indirect Cost", f"₹ {indirect_cost:,.0f}")
+    c4.metric("Gross Margin", f"₹ {gross_margin:,.0f}")
+    c5.metric("EBITDA", f"₹ {ebitda:,.0f}")
 
-# -------------------------
-# PIE CHART (Business Mix)
-# -------------------------
-st.subheader("📊 Business Mix")
+    # -------------------------
+    # PIE CHART
+    # -------------------------
+    st.subheader("📊 Business Mix")
 
-# Exclude summary rows
-exclude_keywords = ["total", "cost", "margin", "ebitda"]
+    exclude_keywords = ["total", "cost", "margin", "ebitda"]
 
-mix_df = df[~df.iloc[:,0].astype(str).str.lower().str.contains("|".join(exclude_keywords))]
+    mix_df = df[~df.iloc[:,0].astype(str).str.lower().str.contains("|".join(exclude_keywords))]
 
-# Take selected month values
-mix_data = mix_df[[df.columns[0], selected_month]].dropna()
+    mix_data = mix_df[[df.columns[0], selected_month]].dropna()
+    mix_data.columns = ["Business", "Value"]
+    mix_data = mix_data[mix_data["Value"] > 0]
 
-mix_data.columns = ["Business", "Value"]
-
-mix_data = mix_data[mix_data["Value"] > 0]
-
-st.plotly_chart({
-    "data": [{
-        "labels": mix_data["Business"],
-        "values": mix_data["Value"],
-        "type": "pie"
-    }],
-    "layout": {"title": f"Business Mix - {selected_month}"}
-})
+    st.plotly_chart({
+        "data": [{
+            "labels": mix_data["Business"],
+            "values": mix_data["Value"],
+            "type": "pie"
+        }],
+        "layout": {"title": f"Business Mix - {selected_month}"}
+    })
 # =========================
 # INVOICES
 # =========================
