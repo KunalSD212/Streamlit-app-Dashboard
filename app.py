@@ -84,7 +84,8 @@ if page == "MIS Overview":
     df = data["mis"].copy()
 
     # Identify month columns
-    month_cols = [col for col in df.columns if "-" in str(col)]
+    month_cols = [col for col in df.columns if "20" in str(col)]
+    month_cols = [str(col) for col in month_cols]
 
     # Dropdown: Monthly / YTD
     view_type = st.selectbox("Select View", ["Monthly", "YTD"])
