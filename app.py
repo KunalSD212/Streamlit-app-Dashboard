@@ -8,7 +8,6 @@ st.set_page_config(layout="wide")
 # =========================
 # AUTO REFRESH (IMPORTANT)
 # =========================
-st.cache_data.clear()
 
 # =========================
 # FILE PATHS (LOCAL / CLOUD)
