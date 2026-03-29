@@ -133,37 +133,37 @@ if page == "MIS Overview":
     c5.metric("EBITDA", f"₹ {ebitda:,.0f}")
 
     # -------------------------
-# BUSINESS MIX (ONLY REVENUE STREAMS)
-# -------------------------
-st.subheader("📊 Business Mix")
-
-# Locate Revenue section
-start_idx = df[df.iloc[:,0] == "REVENUE"].index[0]
-end_idx = df[df.iloc[:,0] == "Total Revenue"].index[0]
-
-# Extract only revenue rows
-mix_df = df.iloc[start_idx+1:end_idx].copy()
-
-# Remove adjustment rows like "less"
-mix_df = mix_df[~mix_df.iloc[:,0].str.contains("less", case=False, na=False)]
-
-# Select month data
-mix_data = mix_df[[df.columns[0], selected_month]].dropna()
-mix_data.columns = ["Business", "Value"]
-
-# Clean values
-mix_data["Value"] = pd.to_numeric(mix_data["Value"], errors="coerce").fillna(0)
-mix_data = mix_data[mix_data["Value"] > 0]
-
-# Plot pie chart
-st.plotly_chart({
-    "data": [{
-        "labels": mix_data["Business"],
-        "values": mix_data["Value"],
-        "type": "pie"
-    }],
-    "layout": {"title": f"Revenue Mix - {selected_month}"}
-})
+    # BUSINESS MIX (ONLY REVENUE STREAMS)
+    # -------------------------
+    st.subheader("📊 Business Mix")
+    
+    # Locate Revenue section
+    start_idx = df[df.iloc[:,0] == "REVENUE"].index[0]
+    end_idx = df[df.iloc[:,0] == "Total Revenue"].index[0]
+    
+    # Extract only revenue rows
+    mix_df = df.iloc[start_idx+1:end_idx].copy()
+    
+    # Remove adjustment rows like "less"
+    mix_df = mix_df[~mix_df.iloc[:,0].str.contains("less", case=False, na=False)]
+    
+    # Select month data
+    mix_data = mix_df[[df.columns[0], selected_month]].dropna()
+    mix_data.columns = ["Business", "Value"]
+    
+    # Clean values
+    mix_data["Value"] = pd.to_numeric(mix_data["Value"], errors="coerce").fillna(0)
+    mix_data = mix_data[mix_data["Value"] > 0]
+    
+    # Plot pie chart
+    st.plotly_chart({
+        "data": [{
+            "labels": mix_data["Business"],
+            "values": mix_data["Value"],
+            "type": "pie"
+        }],
+        "layout": {"title": f"Revenue Mix - {selected_month}"}
+    })
 # =========================
 # INVOICES
 # =========================
