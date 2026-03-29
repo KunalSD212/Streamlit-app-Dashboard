@@ -95,10 +95,14 @@ if page == "MIS Overview":
     # -------------------------
     # Extract Key Rows
     # -------------------------
-    def get_value(label):
-        row = df[df.iloc[:,0].astype(str).str.contains(label, case=False, na=False)]
-        if not row.empty:
-            return row.iloc[0][month_cols]
+    def get_exact_row(keyword):
+        col = df.iloc[:,0].astype(str).str.strip().str.lower()
+        match = df[col.str.contains(keyword, case=False, na=False)]
+    
+        if not match.empty:
+            row = match.iloc[0][month_cols]
+            return pd.to_numeric(row, errors='coerce').fillna(0)
+    
         return pd.Series([0]*len(month_cols), index=month_cols)
 
     revenue_series = get_value("total")
