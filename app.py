@@ -132,40 +132,40 @@ if page == "MIS Overview":
     c4.metric("Gross Margin", f"₹ {gross_margin:,.0f}")
     c5.metric("EBITDA", f"₹ {ebitda:,.0f}")
 
-    # -------------------------
+# -------------------------
 # BUSINESS MIX (FINAL STABLE VERSION)
 # -------------------------
-st.subheader("📊 Business Mix")
-
-col = df.iloc[:,0].astype(str).str.strip().str.lower()
-
-# Find REVENUE section
-start_idx = col[col.str.contains("revenue", case=False, na=False)].index[0]
-
-# Find DIRECT EXPENSES section (end boundary)
-end_idx = col[col.str.contains("direct expenses", case=False, na=False)].index[0]
-
-# Extract revenue rows
-mix_df = df.iloc[start_idx+1:end_idx].copy()
-
-# Remove unwanted rows
-mix_df = mix_df[~mix_df.iloc[:,0].str.contains("less|total", case=False, na=False)]
-
-# Prepare data
-mix_data = mix_df[[df.columns[0], selected_month]].dropna()
-mix_data.columns = ["Business", "Value"]
-
-mix_data["Value"] = pd.to_numeric(mix_data["Value"], errors="coerce").fillna(0)
-mix_data = mix_data[mix_data["Value"] > 0]
-
-# Plot
-st.plotly_chart({
-    "data": [{
-        "labels": mix_data["Business"],
-        "values": mix_data["Value"],
-        "type": "pie"
-    }],
-    "layout": {"title": f"Revenue Mix - {selected_month}"}
+    st.subheader("📊 Business Mix")
+    
+    col = df.iloc[:,0].astype(str).str.strip().str.lower()
+    
+    # Find REVENUE section
+    start_idx = col[col.str.contains("revenue", case=False, na=False)].index[0]
+    
+    # Find DIRECT EXPENSES section (end boundary)
+    end_idx = col[col.str.contains("direct expenses", case=False, na=False)].index[0]
+    
+    # Extract revenue rows
+    mix_df = df.iloc[start_idx+1:end_idx].copy()
+    
+    # Remove unwanted rows
+    mix_df = mix_df[~mix_df.iloc[:,0].str.contains("less|total", case=False, na=False)]
+    
+    # Prepare data
+    mix_data = mix_df[[df.columns[0], selected_month]].dropna()
+    mix_data.columns = ["Business", "Value"]
+    
+    mix_data["Value"] = pd.to_numeric(mix_data["Value"], errors="coerce").fillna(0)
+    mix_data = mix_data[mix_data["Value"] > 0]
+    
+    # Plot
+    st.plotly_chart({
+        "data": [{
+            "labels": mix_data["Business"],
+            "values": mix_data["Value"],
+            "type": "pie"
+        }],
+        "layout": {"title": f"Revenue Mix - {selected_month}"}
 })
 # =========================
 # INVOICES
