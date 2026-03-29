@@ -159,7 +159,12 @@ if page == "MIS Overview":
     mix_df[selected_month] = pd.to_numeric(mix_df[selected_month], errors="coerce")
     
     # Prepare data
+    mix_df[selected_month] = pd.to_numeric(mix_df[selected_month], errors="coerce")
+
     mix_data = mix_df[[df.columns[0], selected_month]].dropna()
+    mix_data.columns = ["Business", "Value"]
+
+    mix_data = mix_data[mix_data["Value"] > 0]
     mix_data.columns = ["Business", "Value"]
     
     mix_data["Value"] = pd.to_numeric(mix_data["Value"], errors="coerce").fillna(0)
