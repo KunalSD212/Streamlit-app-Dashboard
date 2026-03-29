@@ -133,55 +133,40 @@ if page == "MIS Overview":
     c5.metric("EBITDA", f"₹ {ebitda:,.0f}")
 
     # -------------------------
-    # BUSINESS MIX (ONLY REVENUE STREAMS)
-    # -------------------------
-    st.subheader("📊 Business Mix")
-    
-    # Locate Revenue section
-    # Clean column properly
-    col = df.iloc[:,0].astype(str).str.strip().str.lower()
-    
-    # Remove blank rows for safety
-    valid_idx = col[col != ""].index
-    
-    # Find REVENUE start
-    start_candidates = col[col.str.contains("^revenue$", case=False, na=False)]
-    start_idx = start_candidates.index[0]
-    
-    # Find TOTAL rows after revenue
-    total_candidates = col[
-        (col.str.contains("total", case=False, na=False)) & 
-        (col.index > start_idx)
-    ]
-    
-    if not total_candidates.empty:
-        end_idx = total_candidates.index[0]
-    else:
-        st.error("❌ Could not find 'Total Revenue' row")
-        st.stop()   
-    # Extract only revenue rows
-    mix_df = df.iloc[start_idx+1:end_idx].copy()
-    
-    # Remove adjustment rows like "less"
-    mix_df = mix_df[~mix_df.iloc[:,0].str.contains("less", case=False, na=False)]
-    
-    # Select month data
-    mix_data = mix_df[[df.columns[0], selected_month]].dropna()
-    mix_data.columns = ["Business", "Value"]
-    
-    # Clean values
-    mix_data["Value"] = pd.to_numeric(mix_data["Value"], errors="coerce").fillna(0)
-    mix_data = mix_data[mix_data["Value"] > 0]
-    
-    # Plot pie chart
-    st.plotly_chart({
-        "data": [{
-            "labels": mix_data["Business"],
-            "values": mix_data["Value"],
-            "type": "pie"
-        }],
-        "layout": {"title": f"Revenue Mix - {selected_month}"}
-    })
+# BUSINESS MIX (FINAL STABLE VERSION)
+# -------------------------
+st.subheader("📊 Business Mix")
+
+col = df.iloc[:,0].astype(str).str.strip().str.lower()
+
+# Find REVENUE section
+start_idx = col[col.str.contains("revenue", case=False, na=False)].index[0]
+
+# Find DIRECT EXPENSES section (end boundary)
+end_idx = col[col.str.contains("direct expenses", case=False, na=False)].index[0]
+
+# Extract revenue rows
+mix_df = df.iloc[start_idx+1:end_idx].copy()
+
+# Remove unwanted rows
+mix_df = mix_df[~mix_df.iloc[:,0].str.contains("less|total", case=False, na=False)]
+
+# Prepare data
+mix_data = mix_df[[df.columns[0], selected_month]].dropna()
+mix_data.columns = ["Business", "Value"]
+
+mix_data["Value"] = pd.to_numeric(mix_data["Value"], errors="coerce").fillna(0)
+mix_data = mix_data[mix_data["Value"] > 0]
+
+# Plot
+st.plotly_chart({
+    "data": [{
+        "labels": mix_data["Business"],
+        "values": mix_data["Value"],
+        "type": "pie"
+    }],
+    "layout": {"title": f"Revenue Mix - {selected_month}"}
+})
 # =========================
 # INVOICES
 # =========================
