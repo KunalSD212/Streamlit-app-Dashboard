@@ -101,9 +101,9 @@ if page == "MIS Overview":
             return row.iloc[0][month_cols]
         return pd.Series([0]*len(month_cols), index=month_cols)
 
-    revenue_series = get_value("Total Revenue")
-    direct_cost_series = get_value("Total Direct Expenses")
-    indirect_cost_series = get_value("Total Indirect Expenses")
+    revenue_series = get_value("total revenue")
+    direct_cost_series = get_value("total direct")
+    indirect_cost_series = get_value("total indirect")
 
     # -------------------------
     # Monthly vs YTD Logic
@@ -138,8 +138,10 @@ if page == "MIS Overview":
     st.subheader("📊 Business Mix")
     
     # Locate Revenue section
-    start_idx = df[df.iloc[:,0] == "REVENUE"].index[0]
-    end_idx = df[df.iloc[:,0] == "Total Revenue"].index[0]
+    col = df.iloc[:,0].astype(str).str.strip()
+
+    start_idx = col[col.str.contains("REVENUE", case=False, na=False)].index[0]
+    end_idx = col[col.str.contains("Total Revenue", case=False, na=False)].index[0]
     
     # Extract only revenue rows
     mix_df = df.iloc[start_idx+1:end_idx].copy()
