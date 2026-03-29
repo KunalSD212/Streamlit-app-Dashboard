@@ -1,16 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import datetime
 
 st.set_page_config(layout="wide")
 
 # =========================
-# AUTO REFRESH (IMPORTANT)
-# =========================
-
-# =========================
-# FILE PATHS (LOCAL / CLOUD)
+# FILE PATHS
 # =========================
 FILES = {
     "mis": "mis_master.xlsx",
@@ -33,31 +28,10 @@ def load_file(path):
 data = {k: load_file(v) for k, v in FILES.items()}
 
 # =========================
-# CLEANING FUNCTIONS
-# =========================
-def clean_monthly_matrix(df, id_col="Particulars"):
-    df = df.copy()
-    df = df.dropna(how="all")
-    df.columns = df.iloc[1]
-    df = df[2:]
-    df = df.melt(id_vars=[id_col], var_name="Month", value_name="Amount")
-    df["Amount"] = pd.to_numeric(df["Amount"], errors="coerce").fillna(0)
-    return df
-
-# Apply cleaning where needed
-try:
-    recv_roll = clean_monthly_matrix(data["recv_roll"])
-    cn_client = clean_monthly_matrix(data["cn_client"])
-    cn_courier = clean_monthly_matrix(data["cn_courier"])
-except:
-    recv_roll = data["recv_roll"]
-    cn_client = data["cn_client"]
-    cn_courier = data["cn_courier"]
-
-# =========================
 # SIDEBAR
 # =========================
 st.sidebar.title("📊 Management Dashboard")
+
 page = st.sidebar.radio("Navigation", [
     "MIS Overview",
     "Invoices",
@@ -69,12 +43,6 @@ page = st.sidebar.radio("Navigation", [
 ])
 
 # =========================
-# KPI FUNCTION
-# =========================
-def kpi(label, value):
-    st.metric(label, f"₹ {value:,.0f}")
-
-# =========================
 # MIS OVERVIEW
 # =========================
 if page == "MIS Overview":
@@ -82,38 +50,37 @@ if page == "MIS Overview":
     st.title("📊 MIS Overview")
 
     df = data["mis"].copy()
+    df.columns = df.columns.map(str)
 
     # Identify month columns
     month_cols = [col for col in df.columns if "20" in str(col)]
     month_cols = [str(col) for col in month_cols]
 
-    # Dropdown: Monthly / YTD
+    # Dropdowns
     view_type = st.selectbox("Select View", ["Monthly", "YTD"])
-
-    # Select month
     selected_month = st.selectbox("Select Month", month_cols)
 
-    # -------------------------
-    # Extract Key Rows
-    # -------------------------
+    # =========================
+    # KPI FUNCTION
+    # =========================
     def get_exact_row(keyword):
-        col = df.iloc[:,0].astype(str).str.strip().str.lower()
+        col = df.iloc[:, 0].astype(str).str.strip().str.lower()
         match = df[col.str.contains(keyword, case=False, na=False)]
-    
+
         if not match.empty:
             row = match.iloc[0][month_cols]
             row = row.astype(str).str.replace(",", "").str.strip()
-            return pd.to_numeric(row, errors='coerce').fillna(0)
-    
-        return pd.Series([0]*len(month_cols), index=month_cols)
+            return pd.to_numeric(row, errors="coerce").fillna(0)
+
+        return pd.Series([0] * len(month_cols), index=month_cols)
 
     revenue_series = get_exact_row("total revenue")
     direct_cost_series = get_exact_row("total direct")
     indirect_cost_series = get_exact_row("total indirect")
 
-    # -------------------------
-    # Monthly vs YTD Logic
-    # -------------------------
+    # =========================
+    # CALCULATIONS
+    # =========================
     if view_type == "Monthly":
         revenue = revenue_series[selected_month]
         direct_cost = direct_cost_series[selected_month]
@@ -123,13 +90,12 @@ if page == "MIS Overview":
         direct_cost = direct_cost_series.sum()
         indirect_cost = indirect_cost_series.sum()
 
-    # Calculations
     gross_margin = revenue - direct_cost
     ebitda = gross_margin - indirect_cost
 
-    # -------------------------
+    # =========================
     # KPI CARDS
-    # -------------------------
+    # =========================
     c1, c2, c3, c4, c5 = st.columns(5)
 
     c1.metric("Revenue", f"₹ {revenue:,.0f}")
@@ -138,26 +104,21 @@ if page == "MIS Overview":
     c4.metric("Gross Margin", f"₹ {gross_margin:,.0f}")
     c5.metric("EBITDA", f"₹ {ebitda:,.0f}")
 
-# -------------------------
-# BUSINESS MIX (FINAL STABLE VERSION)
-# -------------------------
+    # =========================
+    # BUSINESS MIX
+    # =========================
     st.subheader("📊 Business Mix")
-    
-    col = df.iloc[:,0].astype(str).str.strip().str.lower()
-    
-    # Find REVENUE section
-    start_idx = col[col.str.contains("revenue", case=False, na=False)].index[0]
-    
-    # Find DIRECT EXPENSES section (end boundary)
-    end_idx = col[col.str.contains("direct expenses", case=False, na=False)].index[0]
-    
-    # Extract revenue rows
-    mix_df = df.iloc[start_idx+1:end_idx].copy()
-    
-    # Remove unwanted rows
-    mix_df = mix_df[~mix_df.iloc[:,0].str.contains("less|total", case=False, na=False)]
 
-    # Prepare Data
+    col = df.iloc[:, 0].astype(str).str.strip().str.lower()
+
+    start_idx = col[col.str.contains("revenue", case=False, na=False)].index[0]
+    end_idx = col[col.str.contains("direct expenses", case=False, na=False)].index[0]
+
+    mix_df = df.iloc[start_idx + 1:end_idx].copy()
+
+    mix_df = mix_df[~mix_df.iloc[:, 0].str.contains("less|total", case=False, na=False)]
+
+    # Clean numeric values
     mix_df[selected_month] = (
         mix_df[selected_month]
         .astype(str)
@@ -165,18 +126,13 @@ if page == "MIS Overview":
         .str.strip()
     )
 
-mix_df[selected_month] = pd.to_numeric(mix_df[selected_month], errors="coerce")
+    mix_df[selected_month] = pd.to_numeric(mix_df[selected_month], errors="coerce")
 
-    
     mix_data = mix_df[[df.columns[0], selected_month]].dropna()
     mix_data.columns = ["Business", "Value"]
 
     mix_data = mix_data[mix_data["Value"] > 0]
-    mix_data.columns = ["Business", "Value"]
-    
-    mix_data["Value"] = pd.to_numeric(mix_data["Value"], errors="coerce").fillna(0)
-    mix_data = mix_data[mix_data["Value"] > 0]
-    
+
     # Plot
     st.plotly_chart({
         "data": [{
@@ -185,13 +141,15 @@ mix_df[selected_month] = pd.to_numeric(mix_df[selected_month], errors="coerce")
             "type": "pie"
         }],
         "layout": {"title": f"Revenue Mix - {selected_month}"}
-})
+    })
+
+
 # =========================
 # INVOICES
 # =========================
 elif page == "Invoices":
-    st.title("🧾 Invoices")
 
+    st.title("🧾 Invoices")
     df = data["invoices"]
 
     st.dataframe(df)
@@ -199,12 +157,13 @@ elif page == "Invoices":
     if "Invoice Amount" in df.columns:
         st.bar_chart(df.groupby("Client Name")["Invoice Amount"].sum())
 
+
 # =========================
 # RECEIVABLES
 # =========================
 elif page == "Receivables":
-    st.title("💰 Receivables")
 
+    st.title("💰 Receivables")
     df = data["recv_curr"]
 
     st.dataframe(df)
@@ -212,40 +171,43 @@ elif page == "Receivables":
     if "Outstanding" in df.columns:
         st.metric("Total Outstanding", f"₹ {df['Outstanding'].sum():,.0f}")
 
+
 # =========================
 # COD
 # =========================
 elif page == "COD":
-    st.title("📦 COD Dashboard")
 
+    st.title("📦 COD Dashboard")
     df = data["cod"]
 
     st.dataframe(df)
-
     st.bar_chart(df.select_dtypes(np.number))
+
 
 # =========================
 # CREDIT NOTES COURIER
 # =========================
 elif page == "Credit Notes - Courier":
-    st.title("📉 Courier Credit Notes")
 
-    st.dataframe(cn_courier)
+    st.title("📉 Courier Credit Notes")
+    st.dataframe(data["cn_courier"])
+
 
 # =========================
 # CREDIT NOTES CLIENT
 # =========================
 elif page == "Credit Notes - Client":
-    st.title("📉 Client Credit Notes")
 
-    st.dataframe(cn_client)
+    st.title("📉 Client Credit Notes")
+    st.dataframe(data["cn_client"])
+
 
 # =========================
 # PAYABLES
 # =========================
 elif page == "Payables":
-    st.title("📤 Payables")
 
+    st.title("📤 Payables")
     df = data["payables"]
 
     st.dataframe(df)
