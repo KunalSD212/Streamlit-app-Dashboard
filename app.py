@@ -111,9 +111,23 @@ if page == "MIS Overview":
 
     col = df.iloc[:, 0].astype(str).str.strip().str.lower()
 
-    start_idx = col[col.str.contains("revenue", case=False, na=False)].index[0]
-    end_idx = col[col.str.contains("direct expenses", case=False, na=False)].index[0]
+    # Find REVENUE section safely
+    revenue_rows = col[col.str.contains("revenue", case=False, na=False)]
 
+    if not revenue_rows.empty:
+        start_idx = revenue_rows.index[0]
+    else:
+        st.error("❌ 'REVENUE' section not found")
+        st.stop()
+
+    # Find DIRECT EXPENSES safely
+    direct_rows = col[col.str.contains("direct expenses", case=False, na=False)]
+
+    if not direct_rows.empty:
+        end_idx = direct_rows.index[0]
+    else:
+        st.error("❌ 'DIRECT EXPENSES' section not found")
+        st.stop()
     mix_df = df.iloc[start_idx + 1:end_idx].copy()
 
     mix_df = mix_df[~mix_df.iloc[:, 0].str.contains("less|total", case=False, na=False)]
