@@ -138,13 +138,27 @@ if page == "MIS Overview":
     st.subheader("📊 Business Mix")
     
     # Locate Revenue section
+    # Clean column properly
     col = df.iloc[:,0].astype(str).str.strip().str.lower()
-
-    # Start = first occurrence of "revenue" section header
-    start_idx = col[col == "revenue"].index[0]
-
-    # End = first row AFTER start which contains "total"
-    end_idx = col[(col.str.contains("total")) & (col.index > start_idx)].index[0]    
+    
+    # Remove blank rows for safety
+    valid_idx = col[col != ""].index
+    
+    # Find REVENUE start
+    start_candidates = col[col.str.contains("^revenue$", case=False, na=False)]
+    start_idx = start_candidates.index[0]
+    
+    # Find TOTAL rows after revenue
+    total_candidates = col[
+        (col.str.contains("total", case=False, na=False)) & 
+        (col.index > start_idx)
+    ]
+    
+    if not total_candidates.empty:
+        end_idx = total_candidates.index[0]
+    else:
+        st.error("❌ Could not find 'Total Revenue' row")
+        st.stop()   
     # Extract only revenue rows
     mix_df = df.iloc[start_idx+1:end_idx].copy()
     
