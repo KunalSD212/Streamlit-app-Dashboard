@@ -154,6 +154,9 @@ if page == "MIS Overview":
     
     # Remove unwanted rows
     mix_df = mix_df[~mix_df.iloc[:,0].str.contains("less|total", case=False, na=False)]
+
+    # Adding additional line
+    mix_df[selected_month] = pd.to_numeric(mix_df[selected_month], errors="coerce")
     
     # Prepare data
     mix_data = mix_df[[df.columns[0], selected_month]].dropna()
