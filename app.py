@@ -101,9 +101,9 @@ if page == "MIS Overview":
             return row.iloc[0][month_cols]
         return pd.Series([0]*len(month_cols), index=month_cols)
 
-    revenue_series = get_value("revenue")
-    direct_cost_series = get_value("direct")
-    indirect_cost_series = get_value("indirect")
+    revenue_series = get_value("Total Revenue")
+    direct_cost_series = get_value("Total Direct Expenses")
+    indirect_cost_series = get_value("Total Indirect Expenses")
 
     # -------------------------
     # Monthly vs YTD Logic
