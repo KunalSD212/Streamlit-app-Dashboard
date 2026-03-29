@@ -22,13 +22,22 @@ FILES = {
 # LOAD DATA
 # =========================
 @st.cache_data(ttl=60)
-def load_file(path):
+def load_file(path, sheet=None):
     try:
-        return pd.read_excel(path)
+        return pd.read_excel(path, sheet_name=sheet)
     except:
         return pd.DataFrame()
 
-data = {k: load_file(v) for k, v in FILES.items()}
+data = {
+    "mis": load_file(FILES["mis"], sheet="MIS_DATA"),
+    "invoices": load_file(FILES["invoices"]),
+    "recv_curr": load_file(FILES["recv_curr"]),
+    "recv_roll": load_file(FILES["recv_roll"]),
+    "cod": load_file(FILES["cod"]),
+    "cn_client": load_file(FILES["cn_client"]),
+    "cn_courier": load_file(FILES["cn_courier"]),
+    "payables": load_file(FILES["payables"])
+}
 
 # =========================
 # SIDEBAR
@@ -46,38 +55,7 @@ page = st.sidebar.radio("Navigation", [
 ])
 
 # =========================
-# HELPER FUNCTIONS
-# =========================
-
-def clean_number(series):
-    return pd.to_numeric(
-        series.astype(str).str.replace(",", "").str.strip(),
-        errors="coerce"
-    ).fillna(0)
-
-
-def find_row(df, keyword):
-    col = df.iloc[:, 0].astype(str).str.strip().str.lower()
-    match = df[col.str.contains(keyword, case=False, na=False)]
-    if not match.empty:
-        return match.iloc[0]
-    return None
-
-
-def get_month_columns(df):
-    cols = []
-    for col in df.columns:
-        try:
-            dt = pd.to_datetime(col, errors="coerce")
-            if pd.notna(dt):
-                cols.append(col)
-        except:
-            pass
-    return cols
-
-
-# =========================
-# MIS OVERVIEW
+# MIS OVERVIEW (FINAL CLEAN VERSION)
 # =========================
 if page == "MIS Overview":
 
@@ -86,60 +64,40 @@ if page == "MIS Overview":
     df = data["mis"].copy()
 
     if df.empty:
-        st.error("MIS file not found or empty")
+        st.error("❌ MIS_DATA sheet not found or empty")
         st.stop()
 
-    df.columns = df.columns.map(str)
+    # =========================
+    # DATA CLEANING
+    # =========================
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df["Amount"] = pd.to_numeric(df["Amount"], errors="coerce").fillna(0)
 
-    # Get month columns
-    month_cols = get_month_columns(df)
+    df["Category"] = df["Category"].astype(str).str.strip()
+    df["Subcategory"] = df["Subcategory"].astype(str).str.strip()
 
-    if len(month_cols) == 0:
-        st.warning("⚠️ No valid month columns found")
-        st.stop()
+    df["Month"] = df["Date"].dt.strftime("%b-%y")
 
-    # Dropdowns
+    # =========================
+    # FILTERS
+    # =========================
+    months = sorted(df["Month"].dropna().unique())
+
     view_type = st.selectbox("Select View", ["Monthly", "YTD"])
 
-    selected_month = st.selectbox(
-        "Select Month",
-        month_cols,
-        format_func=lambda x: pd.to_datetime(x).strftime("%b-%y")
-    )
+    selected_month = st.selectbox("Select Month", months)
 
-    # =========================
-    # KPI CALCULATION
-    # =========================
-
-    revenue_row = find_row(df, "total revenue")
-    direct_row = find_row(df, "total direct")
-    indirect_row = find_row(df, "total indirect")
-
-    if revenue_row is None:
-        st.warning("⚠️ Total Revenue not found")
-        revenue_series = pd.Series(0, index=month_cols)
-    else:
-        revenue_series = clean_number(revenue_row[month_cols])
-
-    if direct_row is None:
-        direct_series = pd.Series(0, index=month_cols)
-    else:
-        direct_series = clean_number(direct_row[month_cols])
-
-    if indirect_row is None:
-        indirect_series = pd.Series(0, index=month_cols)
-    else:
-        indirect_series = clean_number(indirect_row[month_cols])
-
-    # Calculations
     if view_type == "Monthly":
-        revenue = revenue_series.get(selected_month, 0)
-        direct_cost = direct_series.get(selected_month, 0)
-        indirect_cost = indirect_series.get(selected_month, 0)
+        df_filtered = df[df["Month"] == selected_month]
     else:
-        revenue = revenue_series.sum()
-        direct_cost = direct_series.sum()
-        indirect_cost = indirect_series.sum()
+        df_filtered = df[df["Month"] <= selected_month]
+
+    # =========================
+    # CALCULATIONS
+    # =========================
+    revenue = df_filtered[df_filtered["Category"] == "Revenue"]["Amount"].sum()
+    direct_cost = df_filtered[df_filtered["Category"] == "Direct Cost"]["Amount"].sum()
+    indirect_cost = df_filtered[df_filtered["Category"] == "Indirect Cost"]["Amount"].sum()
 
     gross_margin = revenue - direct_cost
     ebitda = gross_margin - indirect_cost
@@ -160,75 +118,97 @@ if page == "MIS Overview":
     # =========================
     st.subheader("📊 Business Mix")
 
-    col = df.iloc[:, 0].astype(str).str.strip().str.lower()
+    mix_df = df_filtered[df_filtered["Category"] == "Revenue"]
 
-    revenue_idx = col[col.str.contains("revenue", na=False)]
-    direct_idx = col[col.str.contains("direct expenses", na=False)]
-
-    if revenue_idx.empty or direct_idx.empty:
-        st.warning("⚠️ Cannot detect revenue section for mix chart")
+    if mix_df.empty:
+        st.info("No revenue data available")
     else:
-        start = revenue_idx.index[0]
-        end = direct_idx.index[0]
+        st.plotly_chart({
+            "data": [{
+                "labels": mix_df["Subcategory"],
+                "values": mix_df["Amount"],
+                "type": "pie"
+            }],
+            "layout": {
+                "title": f"Revenue Mix - {selected_month}"
+            }
+        })
 
-        mix_df = df.iloc[start+1:end].copy()
+    # =========================
+    # MONTHLY TREND (BONUS)
+    # =========================
+    st.subheader("📈 Revenue Trend")
 
-        mix_df = mix_df[
-            ~mix_df.iloc[:, 0].astype(str).str.contains("total|less", case=False, na=False)
-        ]
+    trend_df = df.groupby("Month")["Amount"].sum().reset_index()
 
-        mix_df[selected_month] = clean_number(mix_df[selected_month])
-
-        mix_data = mix_df[[df.columns[0], selected_month]].dropna()
-        mix_data.columns = ["Business", "Value"]
-        mix_data = mix_data[mix_data["Value"] > 0]
-
-        if mix_data.empty:
-            st.info("No data for Business Mix")
-        else:
-            st.plotly_chart({
-                "data": [{
-                    "labels": mix_data["Business"],
-                    "values": mix_data["Value"],
-                    "type": "pie"
-                }],
-                "layout": {
-                    "title": f"Revenue Mix - {pd.to_datetime(selected_month).strftime('%b-%y')}"
-                }
-            })
-
+    st.line_chart(trend_df.set_index("Month"))
 
 # =========================
-# OTHER SECTIONS
+# INVOICES
 # =========================
 elif page == "Invoices":
+
     st.title("🧾 Invoices")
     df = data["invoices"]
+
     st.dataframe(df)
 
+    if "Invoice Amount" in df.columns:
+        st.bar_chart(df.groupby("Client Name")["Invoice Amount"].sum())
 
+# =========================
+# RECEIVABLES
+# =========================
 elif page == "Receivables":
+
     st.title("💰 Receivables")
     df = data["recv_curr"]
+
     st.dataframe(df)
 
+    if "Outstanding" in df.columns:
+        st.metric("Total Outstanding", f"₹ {df['Outstanding'].sum():,.0f}")
 
+# =========================
+# COD
+# =========================
 elif page == "COD":
-    st.title("📦 COD")
+
+    st.title("📦 COD Dashboard")
     df = data["cod"]
+
     st.dataframe(df)
 
+    numeric_cols = df.select_dtypes(include=np.number)
 
+    if not numeric_cols.empty:
+        st.bar_chart(numeric_cols)
+
+# =========================
+# CREDIT NOTES COURIER
+# =========================
 elif page == "Credit Notes - Courier":
+
     st.title("📉 Courier Credit Notes")
     st.dataframe(data["cn_courier"])
 
-
+# =========================
+# CREDIT NOTES CLIENT
+# =========================
 elif page == "Credit Notes - Client":
+
     st.title("📉 Client Credit Notes")
     st.dataframe(data["cn_client"])
 
-
+# =========================
+# PAYABLES
+# =========================
 elif page == "Payables":
+
     st.title("📤 Payables")
-    st.dataframe(data["payables"])
+    df = data["payables"]
+
+    st.dataframe(df)
+
+    if "Outstanding" in df.columns:
+        st.metric("Total Outstanding", f"₹ {df['Outstanding'].sum():,.0f}")
