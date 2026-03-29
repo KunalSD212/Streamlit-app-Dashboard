@@ -101,6 +101,7 @@ if page == "MIS Overview":
     
         if not match.empty:
             row = match.iloc[0][month_cols]
+            row = row.astype(str).str.replace(",", "").str.strip()
             return pd.to_numeric(row, errors='coerce').fillna(0)
     
         return pd.Series([0]*len(month_cols), index=month_cols)
