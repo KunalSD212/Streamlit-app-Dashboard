@@ -53,8 +53,15 @@ if page == "MIS Overview":
     df.columns = df.columns.map(str)
 
     # Identify month columns
-    month_cols = [col for col in df.columns if "20" in str(col)]
-    month_cols = [str(col) for col in month_cols]
+    month_cols = []
+
+    for col in df.columns:
+        if isinstance(col, (str, pd.Timestamp)):
+            try:
+                formatted = pd.to_datetime(col).strftime("%b-%y")
+                month_cols.append(col)
+            except:
+                pass
 
     # Dropdowns
     view_type = st.selectbox("Select View", ["Monthly", "YTD"])
